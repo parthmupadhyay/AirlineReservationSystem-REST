@@ -9,6 +9,6 @@ import javax.transaction.Transactional;
  * Created by parth on 4/16/2017.
  */
 
-public interface PassengerDao extends JpaRepository<Passenger,Integer>
+public interface PassengerDao extends JpaRepository<Passenger,String>
 {
 }

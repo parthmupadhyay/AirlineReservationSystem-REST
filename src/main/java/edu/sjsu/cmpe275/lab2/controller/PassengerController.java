@@ -36,7 +36,7 @@ public class PassengerController
     {
         String msg="";
         Passenger passenger=null;
-        int passengerId=0;
+        String passengerId="";
         try
         {
             passenger = new Passenger(firstname, lastname, age, gender, phone);
@@ -59,7 +59,7 @@ public class PassengerController
     }
 
     @RequestMapping(value = "passenger/{id}",method = RequestMethod.PUT)
-    public ResponseEntity<Object> updatePassenger(@PathVariable("id") int id,
+    public ResponseEntity<Object> updatePassenger(@PathVariable("id") String id,
                                   @RequestParam(value="firstname")String firstname,
                                   @RequestParam(value="lastname")String lastname,
                                   @RequestParam(value="age")int age,
@@ -100,7 +100,7 @@ public class PassengerController
             method = RequestMethod.GET,
             produces = "application/json")
     @ResponseBody
-    public ResponseEntity<Object> getPassengerJson(@PathVariable("id") int id,
+    public ResponseEntity<Object> getPassengerJson(@PathVariable("id") String id,
                                                @RequestParam(value="json")boolean json)
     {
         if(json)
@@ -122,7 +122,7 @@ public class PassengerController
             method = RequestMethod.GET,
             produces = "application/xml")
     @ResponseBody
-    public ResponseEntity<Object> getPassengerXml(@PathVariable("id") int id,
+    public ResponseEntity<Object> getPassengerXml(@PathVariable("id") String id,
                                                    @RequestParam(value="xml")boolean xml)
     {
         if(xml)
@@ -142,7 +142,7 @@ public class PassengerController
     @RequestMapping(value = "passenger/{id}",
             method = RequestMethod.DELETE,
             produces = "application/xml")
-    public ResponseEntity<Object> deletePassenger(@PathVariable("id") int id)
+    public ResponseEntity<Object> deletePassenger(@PathVariable("id") String id)
     {
         String error="{\n" + "       \"BadRequest\": {\n" + "              \"code\": \"404 \",\n" +
                 "              \"msg\": \"Passenger with id "+id+" does not exist\"\n" + "       }\n" + "}\n";

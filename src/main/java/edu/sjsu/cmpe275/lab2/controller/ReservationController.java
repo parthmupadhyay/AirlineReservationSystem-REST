@@ -8,10 +8,12 @@ import edu.sjsu.cmpe275.lab2.model.Passenger;
 import edu.sjsu.cmpe275.lab2.model.Reservation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.persistence.criteria.*;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,7 +42,7 @@ public class ReservationController
                     method = RequestMethod.GET,
                     produces = "application/json")
     @ResponseBody
-    public ResponseEntity<Object> getReservation(@PathVariable("id") int id)
+    public ResponseEntity<Object> getReservation(@PathVariable("id") String id)
     {
         String error="{\n" + "\t\"BadRequest\": {\n" + "\t\t\"code\": \" 404 \",\n" +
                 "\t\t\"msg\": \" Reserveration with number "+id+" does not exist \"\n" + "\t}\n" + "}\n";
@@ -57,7 +59,7 @@ public class ReservationController
     @RequestMapping(value = "/reservation",
             method = RequestMethod.POST)
     @ResponseBody
-    public ResponseEntity<Object> makeReservation(@RequestParam int passengerId,
+    public ResponseEntity<Object> makeReservation(@RequestParam String passengerId,
                                   @RequestParam List<String> flightLists,
                                   HttpServletResponse response)
     {
@@ -111,7 +113,7 @@ public class ReservationController
 
     @RequestMapping(value = "/reservation/{id}",
                     method = RequestMethod.DELETE)
-    public ResponseEntity<Object> deleteReservation(@PathVariable int id)
+    public ResponseEntity<Object> deleteReservation(@PathVariable String id)
     {
         String error="{\n" + "\t\"BadRequest\": {\n" + "\t\t\"code\": \" 404 \",\n" +
                 "\t\t\"msg\": \" Reservation with number "+id+" does not exist \"\n" + "\t}\n" + "}\n";
@@ -144,7 +146,7 @@ public class ReservationController
 
     @RequestMapping(value="/reservation/{id}",
                     method = RequestMethod.POST)
-    public ResponseEntity<Object> updateReservation(@PathVariable int id,
+    public ResponseEntity<Object> updateReservation(@PathVariable String id,
                                                     @RequestParam(required = false) List<String> flightsAdded ,
                                                     @RequestParam(required = false) List<String> flightsRemoved,
                                                     HttpServletResponse response)
@@ -244,12 +246,13 @@ public class ReservationController
     public ResponseEntity<Object> searchReservation(@RequestParam(required = false) String passengerId,
                                                     @RequestParam(required = false) String from,
                                                     @RequestParam(required = false) String to,
-                                                    @RequestParam(required = false) String flightNumber)
+                                                    @RequestParam(required = false) final String flightNumber)
     {
-        //if(from.isEmpty() && to.isEmpty() && flightNumber.isEmpty())
-        //{
-            return new ResponseEntity<Object>(passengerId,HttpStatus.NOT_FOUND);
-        //}
+        List<Reservation> reservations=reservationDao.find(flightNumber,to,from,passengerId);
+        String result="";
+        for(Reservation res:reservations)
+          result+=res.getFullJSON();
+        return new ResponseEntity<Object>(result,HttpStatus.NOT_FOUND);
     }
 
     private List<Flight> getFlights(List<String> flightIds)
@@ -272,7 +275,7 @@ public class ReservationController
         return true;
     }
 
-    private boolean validatePassenger(int passengerId)
+    private boolean validatePassenger(String passengerId)
     {
         return passengerDao.exists(passengerId);
     }

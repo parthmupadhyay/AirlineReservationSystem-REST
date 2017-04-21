@@ -1,6 +1,7 @@
 package edu.sjsu.cmpe275.lab2.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.hibernate.annotations.GenericGenerator;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -15,8 +16,9 @@ public class Reservation
 
     @Id
     @Column(name="reservation_id")
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private int orderNumber;
+    @GeneratedValue(generator="system-uuid")
+    @GenericGenerator(name="system-uuid", strategy = "uuid")
+    private String orderNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "passenger_id")
@@ -32,11 +34,11 @@ public class Reservation
 
     private int price;
 
-    public int getOrderNumber() {
+    public String getOrderNumber() {
         return orderNumber;
     }
 
-    public void setOrderNumber(int orderNumber) {
+    public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
     }
 

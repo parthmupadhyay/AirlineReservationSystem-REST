@@ -1,9 +1,9 @@
 package edu.sjsu.cmpe275.lab2.model;
 
+import org.hibernate.annotations.GenericGenerator;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.XML;
-
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import java.util.List;
@@ -14,8 +14,9 @@ public class Passenger
 {
     @Id
     @Column(name="passenger_id")
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private int id;
+    @GeneratedValue(generator="system-uuid")
+    @GenericGenerator(name="system-uuid", strategy = "uuid")
+    private String id;
 
     @OneToMany(mappedBy = "passenger",cascade = CascadeType.REMOVE, fetch = FetchType.EAGER)
     private List<Reservation> reservations;
@@ -49,11 +50,11 @@ public class Passenger
         this.reservations = reservations;
     }
 
-    public int getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(String id) {
         this.id = id;
     }
 
