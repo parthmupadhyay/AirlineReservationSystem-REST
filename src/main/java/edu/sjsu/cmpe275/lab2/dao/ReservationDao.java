@@ -14,22 +14,54 @@ import java.util.List;
  */
 public interface ReservationDao extends JpaRepository<Reservation,String>
 {
-    List<Reservation> findByPassenger(Passenger passenger);
+    @Query("select r from Reservation r where r.passenger.id=(:passengerId)")
+    List<Reservation> findByPassengerId(@Param("passengerId")String passengerId);
 
     @Query("select r from Reservation r inner join r.flights f where f.number=(:flightNumber)")
-    public List<Reservation> findByFlightNumber(@Param("flightNumber") String flightNumber);
+    List<Reservation> findByFlightNumber(@Param("flightNumber") String flightNumber);
 
     @Query("select r from Reservation r inner join r.flights f where f.source=(:source)")
-    public List<Reservation> findBySource(@Param("source") String source);
+    List<Reservation> findBySource(@Param("source") String source);
 
     @Query("select r from Reservation r inner join r.flights f where f.destination=(:destination)")
-    public List<Reservation> findByDestination(@Param("destination") String destination);
+    List<Reservation> findByDestination(@Param("destination") String destination);
 
     @Query("select r from Reservation r inner join r.flights f where f.destination=(:destination)" +
             " and f.source=(:source) and f.number=(:flightNumber) and r.passenger.id=(:passengerId)")
-    public List<Reservation> find(@Param("flightNumber") String flightNumber,
+    List<Reservation> findByAllParam(@Param("flightNumber") String flightNumber,
                                   @Param("destination") String destination,
                                   @Param("source") String source ,
                                   @Param("passengerId")String passengerId );
+
+    @Query("select r from Reservation r inner join r.flights f where f.number=(:flightNumber) and r.passenger.id=(:passengerId)")
+    List<Reservation> findByPassengerFlight(@Param("passengerId")String passengerId,@Param("flightNumber")String flightNumber);
+
+    @Query("select r from Reservation r inner join r.flights f where f.source=(:source)and r.passenger.id=(:passengerId)")
+    List<Reservation> findByPassengerSource(@Param("passengerId")String passengerId,@Param("source")String source);
+
+    @Query("select r from Reservation r inner join r.flights f where f.destination=(:destination)and r.passenger.id=(:passengerId)")
+    List<Reservation> findByPassengerDestination(@Param("passengerId")String passengerId,@Param("destination")String destination);
+
+    @Query("select r from Reservation r inner join r.flights f where f.source=(:source) and f.destination=(:destination)")
+    List<Reservation> findBySourceDestination(@Param("source")String source,@Param("destination")String destination);
+
+    @Query("select r from Reservation r inner join r.flights f where f.source=(:source) and f.number=(:flightNumber)")
+    List<Reservation> findBySourceFlight(@Param("source")String source,@Param("flightNumber")String flightNumber);
+
+    @Query("select r from Reservation r inner join r.flights f where f.destination=(:destination) and f.number=(:flightNumber)")
+    List<Reservation> findByDestinationFlight(@Param("destination")String destination,@Param("flightNumber")String flightNumber);
+
+    @Query("select r from Reservation r inner join r.flights f where r.passenger.id=(:passengerId) and f.destination=(:destination) and f.number=(:flightNumber)")
+    List<Reservation> findByPassengerDestinationFlight(@Param("passengerId")String passengerId,@Param("destination")String destination,@Param("flightNumber")String flightNumber);
+
+    @Query("select r from Reservation r inner join r.flights f where r.passenger.id=(:passengerId) and f.source=(:source) and f.number=(:flightNumber)")
+    List<Reservation> findByPassengerSourceFlight(@Param("passengerId")String passengerId,@Param("source")String source,@Param("flightNumber")String flightNumber);
+
+    @Query("select r from Reservation r inner join r.flights f where r.passenger.id=(:passengerId) and f.source=(:source) and f.destination=(:destination)")
+    List<Reservation> findByPassengerSourceDestination(@Param("passengerId")String passengerId,@Param("source")String source,@Param("destination")String destination);
+
+    @Query("select r from Reservation r inner join r.flights f where f.number=(:flightNumber) and f.source=(:source) and f.destination=(:destination)")
+    List<Reservation> findByFlightSourceDestination(@Param("flightNumber")String flightNumber,@Param("source")String source,@Param("destination")String destination);
+
 
 }

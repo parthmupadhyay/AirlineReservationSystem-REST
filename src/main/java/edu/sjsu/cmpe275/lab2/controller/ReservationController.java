@@ -6,20 +6,19 @@ import edu.sjsu.cmpe275.lab2.dao.ReservationDao;
 import edu.sjsu.cmpe275.lab2.model.Flight;
 import edu.sjsu.cmpe275.lab2.model.Passenger;
 import edu.sjsu.cmpe275.lab2.model.Reservation;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.XML;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.persistence.criteria.*;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Observable;
 
 /**
  * Created by parth on 4/17/2017.
@@ -242,17 +241,74 @@ public class ReservationController
     }
 
     @RequestMapping(value = "/reservation",
-                    method = RequestMethod.GET)
-    public ResponseEntity<Object> searchReservation(@RequestParam(required = false) String passengerId,
-                                                    @RequestParam(required = false) String from,
-                                                    @RequestParam(required = false) String to,
-                                                    @RequestParam(required = false) final String flightNumber)
+                    method = RequestMethod.GET,
+                    produces = "application/xml")
+    public ResponseEntity<Object> searchReservationByAllParam(@RequestParam String passengerId,
+                                                    @RequestParam String from,
+                                                    @RequestParam String to,
+                                                    @RequestParam String flightNumber)
     {
-        List<Reservation> reservations=reservationDao.find(flightNumber,to,from,passengerId);
-        String result="";
-        for(Reservation res:reservations)
-          result+=res.getFullJSON();
-        return new ResponseEntity<Object>(result,HttpStatus.NOT_FOUND);
+        List<Reservation> reservations=null;
+        JSONObject result=new JSONObject();
+        JSONArray reservationArray=new JSONArray();
+
+        if(passengerId.isEmpty()&&to.isEmpty()&&from.isEmpty()&&flightNumber.isEmpty())
+        {
+            return new ResponseEntity<Object>("No reservations found",HttpStatus.NOT_FOUND);
+        }
+        else
+        {
+            if (!passengerId.isEmpty() && !from.isEmpty() && !to.isEmpty() && !flightNumber.isEmpty())
+                reservations = reservationDao.findByAllParam(flightNumber, to, from, passengerId);
+            else if (!passengerId.isEmpty())
+            {
+                if (!to.isEmpty() && !from.isEmpty())
+                    reservations = reservationDao.findByPassengerSourceDestination(passengerId, from, to);
+                else if (!to.isEmpty() && !flightNumber.isEmpty())
+                    reservations = reservationDao.findByPassengerDestinationFlight(passengerId, to, flightNumber);
+                else if (!from.isEmpty() && !flightNumber.isEmpty()) {
+                    System.out.println(passengerId);
+                    System.out.println(from);
+                    System.out.println(flightNumber);
+                    reservations = reservationDao.findByPassengerSourceFlight(passengerId, from, flightNumber);
+                }
+                else if (!to.isEmpty())
+                    reservations = reservationDao.findByPassengerDestination(passengerId, to);
+                else if (!from.isEmpty())
+                    reservations = reservationDao.findByPassengerSource(passengerId, from);
+                else if (!flightNumber.isEmpty())
+                    reservations = reservationDao.findByPassengerFlight(passengerId, flightNumber);
+                else
+                    reservations = reservationDao.findByPassengerId(passengerId);
+            }
+            else if (!flightNumber.isEmpty())
+            {
+                if (!from.isEmpty() && !to.isEmpty())
+                    reservations = reservationDao.findByFlightSourceDestination(flightNumber, from, to);
+                else if (!from.isEmpty())
+                    reservations = reservationDao.findBySourceFlight(from, flightNumber);
+                else if (!to.isEmpty())
+                    reservations = reservationDao.findByDestinationFlight(to, flightNumber);
+                else
+                    reservations = reservationDao.findByFlightNumber(flightNumber);
+            }
+            else if (!from.isEmpty())
+            {
+                if (!to.isEmpty())
+                    reservations = reservationDao.findBySourceDestination(from, to);
+                else
+                    reservations = reservationDao.findBySource(from);
+            } else if (!to.isEmpty())
+            {
+                reservations = reservationDao.findByDestination(to);
+            }
+
+            for(Reservation res:reservations)
+                reservationArray.put(res.getFullJSON());
+            result.put("reservations",reservationArray);
+            return new ResponseEntity<Object>(XML.toString(result),HttpStatus.OK);
+        }
+
     }
 
     private List<Flight> getFlights(List<String> flightIds)
@@ -289,7 +345,7 @@ public class ReservationController
         return true;
     }
 
-    private boolean checkOverlap(Passenger passenger,List<Flight> flights)
+    public static boolean checkOverlap(Passenger passenger,List<Flight> flights)
     {
         for(Flight flight:flights)
         {
@@ -298,16 +354,18 @@ public class ReservationController
             List<Flight> bookedFlights=passenger.getFlights();
             for(Flight booked:bookedFlights)
             {
-                Date bookedDeparture=booked.getDepartureTime();
-                Date bookedArrival=booked.getArrivalTime();
-                if(checkFlightDatesClash(bookedDeparture,bookedArrival,departureDate,arrivalDate))
-                    return false;
+                if(!booked.equals(flight)) {
+                    Date bookedDeparture = booked.getDepartureTime();
+                    Date bookedArrival = booked.getArrivalTime();
+                    if (checkFlightDatesClash(bookedDeparture, bookedArrival, departureDate, arrivalDate))
+                        return false;
+                }
             }
         }
         return true;
     }
 
-    private boolean checkFlightDatesClash(Date oldDep,Date oldArr,Date newDep,Date newArr)
+    private static boolean checkFlightDatesClash(Date oldDep,Date oldArr,Date newDep,Date newArr)
     {
         boolean case1=oldDep.compareTo(newDep) * newDep.compareTo(oldArr) >= 0;
         boolean case2=oldDep.compareTo(newArr) * newArr.compareTo(oldArr) >= 0;

@@ -115,6 +115,15 @@ public class Flight
         this.description = description;
     }
 
+
+    public List<Reservation> getReservations() {
+        return reservations;
+    }
+
+    public void setReservations(List<Reservation> reservations) {
+        this.reservations = reservations;
+    }
+
     private Date arrivalTime;
 
     private int seatsLeft;
