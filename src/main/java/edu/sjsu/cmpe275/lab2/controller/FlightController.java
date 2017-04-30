@@ -3,6 +3,7 @@ package edu.sjsu.cmpe275.lab2.controller;
 import edu.sjsu.cmpe275.lab2.dao.FlightDao;
 import edu.sjsu.cmpe275.lab2.dao.PassengerDao;
 import edu.sjsu.cmpe275.lab2.dao.ReservationDao;
+import edu.sjsu.cmpe275.lab2.main.Message;
 import edu.sjsu.cmpe275.lab2.model.Flight;
 import edu.sjsu.cmpe275.lab2.model.Passenger;
 import edu.sjsu.cmpe275.lab2.model.Plane;
@@ -37,23 +38,19 @@ public class FlightController
     private ReservationDao reservationDao;
 
     @RequestMapping(value = "/flight/{flightNumber}",
-            params = "json",
             method = RequestMethod.GET,
             produces = "application/json")
     @ResponseBody
-    public ResponseEntity<Object> getFlightJSON(@PathVariable("flightNumber") String flightNumber,
-                                                @RequestParam(value="json")boolean json)
+    public ResponseEntity<Object> getFlightJSON(@PathVariable("flightNumber") String flightNumber)
     {
-        String error="{\n" + "\t\"BadRequest\": {\n" + "\t\t\"code\": \" 404 \",\n" +
-                "\t\t\"msg\": \" Sorry, the requested flight with number "+flightNumber+" does not exist \"\n" + "\t}\n" + "}\n";
-        if(json)
+        Message error=new Message("Sorry, the requested flight with number "+flightNumber+" does not exist","404");
+        if (flightDao.exists(flightNumber))
         {
-            if (flightDao.exists(flightNumber)) {
-                Flight flight = flightDao.findOne(flightNumber);
-                return new ResponseEntity(flight.getFullJson().toString(), HttpStatus.OK);
-            }
+            Flight flight = flightDao.findOne(flightNumber);
+            return new ResponseEntity(flight.getFullJson().toString(), HttpStatus.OK);
         }
-        return new ResponseEntity(error,HttpStatus.NOT_FOUND);
+
+        return new ResponseEntity(error.getMessageJSON().toString(),HttpStatus.NOT_FOUND);
 
     }
 
@@ -65,16 +62,23 @@ public class FlightController
     public ResponseEntity<Object> getFlightXML(@PathVariable("flightNumber") String flightNumber,
                                                @RequestParam(value="xml")boolean xml)
     {
-        String error="{\n" + "\t\"BadRequest\": {\n" + "\t\t\"code\": \" 404 \",\n" +
-                "\t\t\"msg\": \" Sorry, the requested flight with number "+flightNumber+" does not exist \"\n" + "\t}\n" + "}\n";
-        if(xml)
+        if(xml==true)
         {
             if (flightDao.exists(flightNumber)) {
                 Flight flight = flightDao.findOne(flightNumber);
                 return new ResponseEntity(flight.getXML(), HttpStatus.OK);
             }
+            else
+            {
+                Message error=new Message("Sorry, the requested flight with number "+flightNumber+" does not exist","404");
+                return new ResponseEntity(XML.toString(error.getMessageJSON()),HttpStatus.NOT_FOUND);
+            }
         }
-        return new ResponseEntity(error,HttpStatus.NOT_FOUND);
+        else
+        {
+            Message error=new Message("xml param should be set to true","400");
+            return new ResponseEntity(XML.toString(error.getMessageJSON()),HttpStatus.BAD_REQUEST);
+        }
 
     }
 
@@ -167,32 +171,27 @@ public class FlightController
             produces = "application/json")
     public ResponseEntity<Object> deleteFlight(@PathVariable("flightNumber") String flightNumber)
     {
-        String error="{\n" +
-                "\t\"BadRequest\": {\n" +
-                "\t\t\"code\": \" 404 \",\n" +
-                "\t\t\"msg\": \" MESSAGE \"\n" +
-                "\t}\n" +
-                "}\n";;
-
+        Message message=new Message("","404");
         if(!flightDao.exists(flightNumber))
         {
-            return new ResponseEntity<Object>(error.replace("MESSAGE","Flight does not exist"),HttpStatus.NOT_FOUND);
+            message.setMessage("Flight does not exist");
+            return new ResponseEntity<Object>(message.getMessageJSON().toString(),HttpStatus.NOT_FOUND);
         }
         else
         {
             Flight flight=flightDao.findOne(flightNumber);
             if(flight.getReservations().size()>0)
             {
-                return new ResponseEntity<Object>(error.replace("MESSAGE","Cannot delete flight, has one or more reservations"),HttpStatus.NOT_FOUND);
+                message.setMessage("Cannot delete flight, has one or more reservations");
+                message.setCode("400");
+                return new ResponseEntity<Object>(message.getMessageJSON().toString(),HttpStatus.BAD_REQUEST);
             }
             else
             {
-                String success="<Response>\n" +
-                        "           <code> 200 </code>\n" +
-                        "           <msg> Flight with number "+flightNumber+" is deleted successfully  </msg>\n" +
-                        "</Response>";
+                message.setCode("200");
+                message.setMessage("Flight with number "+flightNumber+" is deleted successfully ");
                 flightDao.delete(flight);
-                return new ResponseEntity<Object>(XML.toJSONObject(success).toString(),HttpStatus.OK);
+                return new ResponseEntity<Object>(message.getMessageJSON().toString(),HttpStatus.OK);
             }
         }
     }

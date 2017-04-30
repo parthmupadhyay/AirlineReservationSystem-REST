@@ -3,6 +3,7 @@ package edu.sjsu.cmpe275.lab2.controller;
 import edu.sjsu.cmpe275.lab2.dao.FlightDao;
 import edu.sjsu.cmpe275.lab2.dao.PassengerDao;
 import edu.sjsu.cmpe275.lab2.dao.ReservationDao;
+import edu.sjsu.cmpe275.lab2.main.Message;
 import edu.sjsu.cmpe275.lab2.model.Flight;
 import edu.sjsu.cmpe275.lab2.model.Passenger;
 import edu.sjsu.cmpe275.lab2.model.Reservation;
@@ -43,26 +44,26 @@ public class ReservationController
     @ResponseBody
     public ResponseEntity<Object> getReservation(@PathVariable("id") String id)
     {
-        String error="{\n" + "\t\"BadRequest\": {\n" + "\t\t\"code\": \" 404 \",\n" +
-                "\t\t\"msg\": \" Reserveration with number "+id+" does not exist \"\n" + "\t}\n" + "}\n";
+        Message errorMessage=new Message(" Reservation with number "+id+" does not exist","404");
         if (reservationDao.exists(id))
         {
             Reservation reservation=reservationDao.findOne(id);
             return new ResponseEntity(reservation.getFullJSON().toString(), HttpStatus.OK);
         }
-        return new ResponseEntity(error,HttpStatus.NOT_FOUND);
+        return new ResponseEntity(errorMessage.getMessageJSON().toString(),HttpStatus.NOT_FOUND);
 
     }
 
 
     @RequestMapping(value = "/reservation",
-            method = RequestMethod.POST)
+            method = RequestMethod.POST,
+            produces = "application/json")
     @ResponseBody
     public ResponseEntity<Object> makeReservation(@RequestParam String passengerId,
                                   @RequestParam List<String> flightLists,
                                   HttpServletResponse response)
     {
-        String msg="";
+        Message message=new Message("","400");
         if(flightLists!=null&&!flightLists.isEmpty()) {
             try {
                 if (validatePassenger(passengerId) && validateFlights(flightLists)) {
@@ -88,41 +89,31 @@ public class ReservationController
                         }
                         response.sendRedirect("/reservation/" + newReservation.getOrderNumber());
                     } else
-                        msg = "Flights Overlap occurred";
+                        message.setMessage("Flights Overlap occurred");
                 } else
-                    msg = "Flight or Passenger doesnt exist";
+                    message.setMessage("Flight or Passenger doesnt exist");
             } catch (Exception e) {
-                msg = e.getMessage();
+                message.setMessage(e.getMessage());
             }
         }
         else
         {
-            msg= "Please specify flights";
+            message.setMessage("Please specify flights");
         }
-        String error="{\n" +
-                "\t   \"BadRequest\": {\n" +
-                "\t\t  \"code\": \"404 \",\n" +
-                "\t\t   \"msg\": \""+msg+"\"\n" +
-                "\t   }\n" +
-                "}\n";
-
-        return new ResponseEntity<Object>(error,HttpStatus.NOT_FOUND);
+        return new ResponseEntity<Object>(message.getMessageJSON().toString(),HttpStatus.BAD_REQUEST);
     }
 
 
     @RequestMapping(value = "/reservation/{id}",
-                    method = RequestMethod.DELETE)
+                    method = RequestMethod.DELETE,
+                    produces = "application/xml")
     public ResponseEntity<Object> deleteReservation(@PathVariable String id)
     {
-        String error="{\n" + "\t\"BadRequest\": {\n" + "\t\t\"code\": \" 404 \",\n" +
-                "\t\t\"msg\": \" Reservation with number "+id+" does not exist \"\n" + "\t}\n" + "}\n";
-        String success="<Response>\n" +
-                "           <code> 200 </code>\n" +
-                "           <msg> Reservation with number "+id+" is canceled successfully  </msg>\n" +
-                "</Response>";
+        Message success=new Message("Reservation with number "+id+" is canceled successfully","200");
+        Message error=new Message("Reservation with number "+id+" does not exist","404");
         if(!reservationDao.exists(id))
         {
-            return new ResponseEntity(error,HttpStatus.NOT_FOUND);
+            return new ResponseEntity(XML.toString(error.getMessageJSON()),HttpStatus.NOT_FOUND);
         }
         else
         {
@@ -139,7 +130,7 @@ public class ReservationController
             passenger.setFlights(passengerFlights);
             passengerDao.save(passenger);
             reservationDao.delete(reservation);
-            return new ResponseEntity(success,HttpStatus.OK);
+            return new ResponseEntity(XML.toString(success.getMessageJSON()),HttpStatus.OK);
         }
     }
 
@@ -150,27 +141,25 @@ public class ReservationController
                                                     @RequestParam(required = false) List<String> flightsRemoved,
                                                     HttpServletResponse response)
     {
-        String error="{\n" + "\t   \"BadRequest\": {\n" + "\t\t  \"code\": \"404 \",\n" +
-                "\t\t   \"msg\": \"FAILED\"\n" + "\t   }\n" + "}\n";
-
+        Message error=new Message("","404");
         try
         {
 
         if((flightsAdded==null||flightsAdded.isEmpty())&&(flightsRemoved==null||flightsRemoved.isEmpty()))
         {
             String msg="Both flightsAdded and flightsRemoved parameters are empty";
-            return new ResponseEntity(error.replace("FAILED",msg),HttpStatus.NOT_FOUND);
+            error.setMessage(msg);
         }
         else if(flightsAdded.equals(flightsRemoved))
         {
             String msg="Both flightsAdded and flightsRemoved parameters are identical";
-            return new ResponseEntity(error.replace("FAILED",msg),HttpStatus.NOT_FOUND);
+            error.setMessage(msg);
 
         }
         else if(!reservationDao.exists(id))
         {
             String msg="Reservation with number "+id+" does not exist";
-            return new ResponseEntity(error.replace("FAILED",msg),HttpStatus.NOT_FOUND);
+            error.setMessage(msg);
         }
         else
         {
@@ -182,21 +171,25 @@ public class ReservationController
                 if(!validateFlights(flightsRemoved))
                 {
                     String msg="Flights to be removed does'nt exist";
-                    return new ResponseEntity(error.replace("FAILED",msg),HttpStatus.NOT_FOUND);
+                    error.setMessage(msg);
                 }
                 else if(checkReservationForExistingFlights(reservation,flightsToBeRemoved))
                 {
                     List<Flight> oldFlights=reservation.getFlights();
                     passenger=reservation.getPassenger();
                     List<Flight> passengerFlights=passenger.getFlights();
+                    int oldTotal=reservation.getPrice();
+                    int newTotal=oldTotal;
                     for(Flight flight:flightsToBeRemoved)
                     {
                         flight.setSeatsLeft(flight.getSeatsLeft()+1);
                         flightDao.save(flight);
                         oldFlights.remove(flight);
                         passengerFlights.remove(flight);
+                        newTotal-=flight.getPrice();
                     }
                     passenger.setFlights(passengerFlights);
+                    reservation.setPrice(newTotal);
                     reservation.setFlights(oldFlights);
                 }
             }
@@ -205,15 +198,17 @@ public class ReservationController
                 if(!validateFlights(flightsAdded))
                 {
                     String msg="Flights to be added does'nt exist";
-                    return new ResponseEntity(error.replace("FAILED",msg),HttpStatus.NOT_FOUND);
+                    error.setMessage(msg);
                 }
                 else
                 {
                     List<Flight> flightsToBeAdded=getFlights(flightsAdded);
                     passenger=reservation.getPassenger();
                     List<Flight> passengerFlights=passenger.getFlights();
+
                     if(checkOverlap(passenger,flightsToBeAdded))
                     {
+                        int newTotal=reservation.getPrice();
                         List<Flight> flightList=reservation.getFlights();
                         for(Flight flight:flightsToBeAdded)
                         {
@@ -221,9 +216,11 @@ public class ReservationController
                             flightDao.save(flight);
                             flightList.add(flight);
                             passengerFlights.add(flight);
+                            newTotal+=flight.getPrice();
                         }
                         passenger.setFlights(passengerFlights);
                         reservation.setFlights(flightList);
+                        reservation.setPrice(newTotal);
                     }
                 }
             }
@@ -234,71 +231,75 @@ public class ReservationController
         }
         catch (Exception e)
         {
-            return new ResponseEntity(error.replace("FAILED",e.getMessage()),HttpStatus.NOT_FOUND);
-
+            error.setMessage(e.getMessage());
         }
-        return new ResponseEntity(error,HttpStatus.NOT_FOUND);
+        return new ResponseEntity(error.getMessageJSON().toString(),HttpStatus.NOT_FOUND);
     }
 
     @RequestMapping(value = "/reservation",
                     method = RequestMethod.GET,
                     produces = "application/xml")
-    public ResponseEntity<Object> searchReservationByAllParam(@RequestParam String passengerId,
-                                                    @RequestParam String from,
-                                                    @RequestParam String to,
-                                                    @RequestParam String flightNumber)
+    public ResponseEntity<Object> searchReservationByAllParam(@RequestParam(required = false) String passengerId,
+                                                    @RequestParam(required = false) String from,
+                                                    @RequestParam(required = false) String to,
+                                                    @RequestParam(required = false) String flightNumber)
     {
         List<Reservation> reservations=null;
         JSONObject result=new JSONObject();
         JSONArray reservationArray=new JSONArray();
 
-        if(passengerId.isEmpty()&&to.isEmpty()&&from.isEmpty()&&flightNumber.isEmpty())
+        boolean passengerIdExists=isEmpty(passengerId);
+        boolean toExists=isEmpty(to);
+        boolean fromExists=isEmpty(from);
+        boolean flightNumberExists=isEmpty(flightNumber);
+        if(!passengerIdExists&&!toExists&&!fromExists&&!flightNumberExists)
         {
-            return new ResponseEntity<Object>("No reservations found",HttpStatus.NOT_FOUND);
+            Message message=new Message("Please pass valid search params","400");
+            return new ResponseEntity<Object>(message.getMessageJSON().toString(),HttpStatus.BAD_REQUEST);
         }
         else
         {
-            if (!passengerId.isEmpty() && !from.isEmpty() && !to.isEmpty() && !flightNumber.isEmpty())
+            if (passengerIdExists && fromExists && toExists && flightNumberExists)
                 reservations = reservationDao.findByAllParam(flightNumber, to, from, passengerId);
-            else if (!passengerId.isEmpty())
+            else if (passengerIdExists)
             {
-                if (!to.isEmpty() && !from.isEmpty())
+                if (toExists && fromExists)
                     reservations = reservationDao.findByPassengerSourceDestination(passengerId, from, to);
-                else if (!to.isEmpty() && !flightNumber.isEmpty())
+                else if (toExists && flightNumberExists)
                     reservations = reservationDao.findByPassengerDestinationFlight(passengerId, to, flightNumber);
-                else if (!from.isEmpty() && !flightNumber.isEmpty()) {
+                else if (fromExists && flightNumberExists) {
                     System.out.println(passengerId);
                     System.out.println(from);
                     System.out.println(flightNumber);
                     reservations = reservationDao.findByPassengerSourceFlight(passengerId, from, flightNumber);
                 }
-                else if (!to.isEmpty())
+                else if (toExists)
                     reservations = reservationDao.findByPassengerDestination(passengerId, to);
-                else if (!from.isEmpty())
+                else if (fromExists)
                     reservations = reservationDao.findByPassengerSource(passengerId, from);
-                else if (!flightNumber.isEmpty())
+                else if (flightNumberExists)
                     reservations = reservationDao.findByPassengerFlight(passengerId, flightNumber);
                 else
                     reservations = reservationDao.findByPassengerId(passengerId);
             }
-            else if (!flightNumber.isEmpty())
+            else if (flightNumberExists)
             {
-                if (!from.isEmpty() && !to.isEmpty())
+                if (fromExists && toExists)
                     reservations = reservationDao.findByFlightSourceDestination(flightNumber, from, to);
-                else if (!from.isEmpty())
+                else if (fromExists)
                     reservations = reservationDao.findBySourceFlight(from, flightNumber);
-                else if (!to.isEmpty())
+                else if (toExists)
                     reservations = reservationDao.findByDestinationFlight(to, flightNumber);
                 else
                     reservations = reservationDao.findByFlightNumber(flightNumber);
             }
-            else if (!from.isEmpty())
+            else if (fromExists)
             {
-                if (!to.isEmpty())
+                if (toExists)
                     reservations = reservationDao.findBySourceDestination(from, to);
                 else
                     reservations = reservationDao.findBySource(from);
-            } else if (!to.isEmpty())
+            } else if (toExists)
             {
                 reservations = reservationDao.findByDestination(to);
             }
@@ -306,7 +307,14 @@ public class ReservationController
             for(Reservation res:reservations)
                 reservationArray.put(res.getFullJSON());
             result.put("reservations",reservationArray);
-            return new ResponseEntity<Object>(XML.toString(result),HttpStatus.OK);
+            if(reservations.size()<1||reservations==null||reservations.isEmpty())
+            {
+                Message message=new Message("No results found","200");
+                return new ResponseEntity<Object>(message.getMessageJSON().toString(),HttpStatus.OK);
+
+            }
+            else
+                return new ResponseEntity<Object>(XML.toString(result),HttpStatus.OK);
         }
 
     }
@@ -337,11 +345,30 @@ public class ReservationController
     }
     private boolean validateFlights(List<String> flights)
     {
-        for(String flightId:flights)
+        /*for(String flightId:flights)
         {
             if(!flightDao.exists(flightId))
                 return false;
+
+        }*/
+        for(int i=0;i<flights.size()-1;i++)
+        {
+            for(int j=i+1;j<flights.size();j++)
+            {
+                if(flightDao.exists(flights.get(i))&&flightDao.exists(flights.get(j)))
+                {
+                    Flight one=flightDao.findOne(flights.get(i));
+                    Flight two=flightDao.findOne(flights.get(j));
+                    if(checkFlightDatesClash(one.getDepartureTime(),one.getArrivalTime(),two.getDepartureTime(),two.getArrivalTime()))
+                    {
+                        return false;
+                    }
+                }
+                else
+                    return false;
+            }
         }
+
         return true;
     }
 
@@ -357,6 +384,11 @@ public class ReservationController
                 if(!booked.equals(flight)) {
                     Date bookedDeparture = booked.getDepartureTime();
                     Date bookedArrival = booked.getArrivalTime();
+                    System.out.println("bookedD:"+bookedDeparture.toString());
+                    System.out.println("bookedA:"+bookedArrival.toString());
+                    System.out.println("newD:"+departureDate.toString());
+                    System.out.println("newA:"+arrivalDate.toString());
+                    System.out.println(checkFlightDatesClash(bookedDeparture, bookedArrival, departureDate, arrivalDate));
                     if (checkFlightDatesClash(bookedDeparture, bookedArrival, departureDate, arrivalDate))
                         return false;
                 }
@@ -367,9 +399,7 @@ public class ReservationController
 
     private static boolean checkFlightDatesClash(Date oldDep,Date oldArr,Date newDep,Date newArr)
     {
-        boolean case1=oldDep.compareTo(newDep) * newDep.compareTo(oldArr) >= 0;
-        boolean case2=oldDep.compareTo(newArr) * newArr.compareTo(oldArr) >= 0;
-        return case1&&case2;
+        return (oldDep.compareTo(newArr)<=0)&&(newDep.compareTo(oldArr)<=0);
     }
 
     private boolean checkSeatsLeft(List<Flight> flights)
@@ -380,5 +410,13 @@ public class ReservationController
                 return false;
         }
         return true;
+    }
+
+    private boolean isEmpty(String param)
+    {
+        if(param==null)
+            return false;
+        else
+            return !param.isEmpty();
     }
 }

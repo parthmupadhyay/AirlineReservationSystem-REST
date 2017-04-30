@@ -1,8 +1,9 @@
 package edu.sjsu.cmpe275.lab2.controller;
 
-import com.mysql.jdbc.exceptions.MySQLIntegrityConstraintViolationException;
 import edu.sjsu.cmpe275.lab2.dao.PassengerDao;
+import edu.sjsu.cmpe275.lab2.main.Message;
 import edu.sjsu.cmpe275.lab2.model.Passenger;
+import org.json.XML;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -11,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
-import javax.validation.ConstraintViolationException;
 import java.io.IOException;
 
 
@@ -26,7 +26,7 @@ public class PassengerController
     @Autowired
     PassengerDao passengerDao;
 
-    @RequestMapping(value = "passenger",method = RequestMethod.POST)
+    @RequestMapping(value = "passenger",method = RequestMethod.POST,produces = "application/json")
     public ResponseEntity<Object> createPassenger(@RequestParam(value="firstname")String firstname,
                                   @RequestParam(value="lastname")String lastname,
                                   @RequestParam(value="age")int age,
@@ -34,7 +34,7 @@ public class PassengerController
                                   @RequestParam(value="phone")String phone,
                                   HttpServletResponse response)
     {
-        String msg="";
+        Message message = new Message("","400");
         Passenger passenger=null;
         String passengerId="";
         try
@@ -42,23 +42,21 @@ public class PassengerController
             passenger = new Passenger(firstname, lastname, age, gender, phone);
             passengerDao.save(passenger);
             passengerId=passenger.getId();
-            response.sendRedirect("/passenger/"+passengerId+"?json=true");
+            response.sendRedirect("/passenger/"+passengerId);
         }
         catch (DataIntegrityViolationException e)
         {
-            msg="Another passenger with the same number already exists";
+            message.setMessage("Another passenger with the same Phone number already exists");
         }
         catch (IOException e)
         {
-            msg=e.getMessage();
+            message.setMessage(e.getMessage());
         }
-        String error="{\n" + "       \"BadRequest\": {\n" + "              \"code\": \"400\",\n" +
-                "               \"msg\": \""+msg+"”\n" + "       }\n" + "}\n";
 
-        return new ResponseEntity<Object>(error,HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<Object>(message.getMessageJSON().toString(),HttpStatus.BAD_REQUEST);
     }
 
-    @RequestMapping(value = "passenger/{id}",method = RequestMethod.PUT)
+    @RequestMapping(value = "passenger/{id}",method = RequestMethod.PUT,produces = "application/json")
     public ResponseEntity<Object> updatePassenger(@PathVariable("id") String id,
                                   @RequestParam(value="firstname")String firstname,
                                   @RequestParam(value="lastname")String lastname,
@@ -67,8 +65,7 @@ public class PassengerController
                                   @RequestParam(value="phone")String phone,
                                   HttpServletResponse response)
     {
-        String msg="";
-
+        Message message =new Message("","404");
         try
         {
             Passenger passenger = passengerDao.findOne(id);
@@ -79,41 +76,35 @@ public class PassengerController
                 passenger.setGender(gender);
                 passenger.setPhone(phone);
                 passengerDao.save(passenger);
-                response.sendRedirect("/passenger/"+id+"?json=true");
+                response.sendRedirect("/passenger/"+id);
             }
         }
         catch(DataIntegrityViolationException e)
         {
-            msg="Cannot update , passenger with same phone number already exists";
+            message.setMessage("Cannot update , passenger with same phone number already exists");
         }
         catch(IOException e)
         {
-            msg=e.getMessage();
+            message.setMessage(e.getMessage());
         }
-        String error="{\n" + "       \"BadRequest\": {\n" + "              \"code\": \"404 \",\n" +
-                "              \"msg\": \""+msg+"\"\n" + "       }\n" + "}\n";
-        return new ResponseEntity(error,HttpStatus.BAD_REQUEST);
+        return new ResponseEntity(message.getMessageJSON().toString(),HttpStatus.NOT_FOUND);
     }
 
     @RequestMapping(value = "passenger/{id}",
-            params = "json",
             method = RequestMethod.GET,
             produces = "application/json")
     @ResponseBody
-    public ResponseEntity<Object> getPassengerJson(@PathVariable("id") String id,
-                                               @RequestParam(value="json")boolean json)
+    public ResponseEntity<Object> getPassengerJson(@PathVariable("id") String id)
     {
-        if(json)
+        if(passengerDao.exists(id))
         {
             Passenger passenger=passengerDao.findOne(id);
             return new ResponseEntity(passenger.getFullJSON().toString(),HttpStatus.OK);
-
         }
-        else {
-            String error = "{\n" + "\t\"BadRequest\":\n {\n" + "\t\t\"code\": \" 404 \",\n" +
-                    "\t\t\"msg\": \" Sorry, the requested passenger with id " + id + " does not exist\"\n" + "\t}\n" + "}\n";
-
-            return new ResponseEntity(error, HttpStatus.NOT_FOUND);
+        else
+        {
+            Message error=new Message("Sorry, the requested passenger with id " + id + " does not exist","404");
+            return new ResponseEntity(error.getMessageJSON().toString(), HttpStatus.NOT_FOUND);
         }
     }
 
@@ -127,15 +118,21 @@ public class PassengerController
     {
         if(xml)
         {
-            Passenger passenger=passengerDao.findOne(id);
-            return new ResponseEntity(passenger.getXML(),HttpStatus.OK);
+            if(passengerDao.exists(id))
+            {
+                Passenger passenger=passengerDao.findOne(id);
+                return new ResponseEntity(passenger.getXML(),HttpStatus.OK);
+            }
+            else
+            {
+                Message error=new Message("Sorry, the requested passenger with id " + id + " does not exist","404");
+                return new ResponseEntity(XML.toString(error.getMessageJSON()), HttpStatus.NOT_FOUND);
+            }
 
         }
         else {
-            String error = "{\n" + "\t\"BadRequest\":\n {\n" + "\t\t\"code\": \" 404 \",\n" +
-                    "\t\t\"msg\": \" Sorry, the requested passenger with id " + id + " does not exist\"\n" + "\t}\n" + "}\n";
-
-            return new ResponseEntity(error, HttpStatus.NOT_FOUND);
+            Message error=new Message("Please check xml param","404");
+            return new ResponseEntity(XML.toString(error.getMessageJSON()), HttpStatus.NOT_FOUND);
         }
     }
 
@@ -144,24 +141,16 @@ public class PassengerController
             produces = "application/xml")
     public ResponseEntity<Object> deletePassenger(@PathVariable("id") String id)
     {
-        String error="{\n" + "       \"BadRequest\": {\n" + "              \"code\": \"404 \",\n" +
-                "              \"msg\": \"Passenger with id "+id+" does not exist\"\n" + "       }\n" + "}\n";
-        String success="<Response>\n" + "           <code> 200 </code>\n" +
-                "           <msg> Passenger with id "+id+" is deleted successfully  </msg>\n" + "</Response>\n";
+        Message success=new Message("Passenger with id "+id+" is deleted successfully ","200");
+        Message error=new Message("Passenger with id "+id+" does not exist","404");
         if(passengerDao.exists(id))
         {
             passengerDao.delete(id);
-            return new ResponseEntity(success,HttpStatus.OK);
+            return new ResponseEntity(XML.toString(success.getMessageJSON()),HttpStatus.OK);
         }
         else
         {
-            return new ResponseEntity(error,HttpStatus.NOT_FOUND);
+            return new ResponseEntity(XML.toString(error.getMessageJSON()),HttpStatus.NOT_FOUND);
         }
     }
-
-
-
-
-
-
 }

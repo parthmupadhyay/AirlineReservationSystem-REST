@@ -1,5 +1,6 @@
 package edu.sjsu.cmpe275.lab2.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.GenericGenerator;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -21,6 +22,7 @@ public class Passenger
     @OneToMany(mappedBy = "passenger",cascade = CascadeType.REMOVE, fetch = FetchType.EAGER)
     private List<Reservation> reservations;
 
+    @JsonIgnore
     @ManyToMany
     @JoinTable(
             name ="passenger_flights",
@@ -111,6 +113,7 @@ public class Passenger
 
     public JSONObject getFullJSON()
     {
+        JSONObject result=new JSONObject();
         JSONObject passenger=this.getJSON();
         JSONArray reservationArray=new JSONArray();
         for(Reservation res:this.getReservations())
@@ -122,7 +125,8 @@ public class Passenger
             reservationArray.put(reservation);
         }
         passenger.put("reservations",reservationArray);
-        return passenger;
+        result.put("passenger",passenger);
+        return result;
     }
 
     public String getXML()

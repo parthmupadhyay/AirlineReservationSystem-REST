@@ -17,6 +17,7 @@ public class Flight
     @Column(name="flight_number",unique = true)
     private String number;
 
+
     @ManyToMany(mappedBy="flights")
     private List<Passenger> passengers;
 
