@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.GenericGenerator;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.json.XML;
 
 import javax.persistence.*;
 import java.util.List;
@@ -68,6 +69,10 @@ public class Reservation
         this.price = price;
     }
 
+    /**
+     * JSON representation of Reservation inclusive of Flight details
+     * @return JSONObject
+     */
     public JSONObject getFullJSON()
     {
         JSONObject result = new JSONObject();
@@ -85,10 +90,26 @@ public class Reservation
         return result;
     }
 
+    /**
+     * XML representation of Reservation JSONObject
+     * @return String
+     */
+    public String getXML()
+    {
+        return XML.toString(getFullJSON());
+    }
+
     public Reservation()
     {
-
+        this.passenger=null;
+        this.price=0;
     }
+
+    /**
+     * Constructor
+     * @param passenger Passenger whose reservation is to be made
+     * @param price Cost of Flight/Flights
+     */
     public Reservation(Passenger passenger, int price) {
         this.passenger = passenger;
         this.price = price;

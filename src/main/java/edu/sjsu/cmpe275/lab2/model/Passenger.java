@@ -103,6 +103,14 @@ public class Passenger
     public Passenger()
     {}
 
+    /**
+     * Constructor
+     * @param first_name Passenger First Name
+     * @param last_name Passenger Last Name
+     * @param age Passenger Age
+     * @param gender Passenger Gender
+     * @param phone Passenger Phone Number
+     */
     public Passenger(String first_name, String last_name, int age, String gender, String phone) {
         this.firstname = first_name;
         this.lastname = last_name;
@@ -111,6 +119,10 @@ public class Passenger
         this.phone = phone;
     }
 
+    /**
+     * Passenger data inclusive of Reservation details
+     * @return JSONObject
+     */
     public JSONObject getFullJSON()
     {
         JSONObject result=new JSONObject();
@@ -129,10 +141,19 @@ public class Passenger
         return result;
     }
 
+    /**
+     * Passenger data as XML
+     * @return String
+     */
     public String getXML()
     {
         return XML.toString(this.getFullJSON());
     }
+
+    /**
+     * Passenger data excluding Reservation details
+     * @return JSONObject
+     */
     public JSONObject getJSON()
     {
         JSONObject passenger = new JSONObject();

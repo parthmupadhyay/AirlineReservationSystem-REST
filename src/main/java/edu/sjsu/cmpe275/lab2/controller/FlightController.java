@@ -37,6 +37,10 @@ public class FlightController
     @Autowired
     private ReservationDao reservationDao;
 
+    /**
+     * Get Flight as JSON
+     * @param flightNumber Flight Number
+     */
     @RequestMapping(value = "/flight/{flightNumber}",
             method = RequestMethod.GET,
             produces = "application/json")
@@ -54,6 +58,11 @@ public class FlightController
 
     }
 
+    /**
+     * Get Flight back as XML ,if xml boolean parameter is true
+     * @param flightNumber Flight Number
+     * @param xml boolean
+     */
     @RequestMapping(value = "/flight/{flightNumber}",
             params = "xml",
             method = RequestMethod.GET,
@@ -71,19 +80,34 @@ public class FlightController
             else
             {
                 Message error=new Message("Sorry, the requested flight with number "+flightNumber+" does not exist","404");
-                return new ResponseEntity(XML.toString(error.getMessageJSON()),HttpStatus.NOT_FOUND);
+                return new ResponseEntity(error.getXML(),HttpStatus.NOT_FOUND);
             }
         }
         else
         {
             Message error=new Message("xml param should be set to true","400");
-            return new ResponseEntity(XML.toString(error.getMessageJSON()),HttpStatus.BAD_REQUEST);
+            return new ResponseEntity(error.getXML(),HttpStatus.BAD_REQUEST);
         }
-
     }
 
+    /**
+     * Create or Update flight
+     * @param flightNumber Flight Number
+     * @param price Ticket Price for Flight
+     * @param from Source
+     * @param to Destination
+     * @param departureTime Departure Time of Flight
+     * @param arrivalTime Arrival Time of Flight
+     * @param description Description of Flight
+     * @param capacity Passenger Capacity of Flight
+     * @param model Plane Model
+     * @param manufacturer Plane Manufacturer
+     * @param yearOfManufacture Plane Manufacture Year
+     * @param response for redirection to get Flight
+     */
     @RequestMapping(value="flight/{flightNumber}",
-                    method=RequestMethod.POST)
+                    method=RequestMethod.POST,
+                    produces = "application/json")
     @ResponseBody
     public ResponseEntity<Object> createOrUpdateFlight(@PathVariable("flightNumber") String flightNumber,
                                                        @RequestParam(value="price")int price,
@@ -98,12 +122,6 @@ public class FlightController
                                                        @RequestParam(value="yearOfManufacture")int yearOfManufacture,
                                                        HttpServletResponse response)
     {
-        String error="{\n" +
-                "\t\"BadRequest\": {\n" +
-                "\t\t\"code\": \" 404 \",\n" +
-                "\t\t\"msg\": \" Cannot create flight \"\n" +
-                "\t}\n" +
-                "}\n";
         try
         {
             Plane plane = new Plane(capacity, model, manufacturer, yearOfManufacture);
@@ -123,6 +141,11 @@ public class FlightController
             else
             {
                 Flight existingFlight=flightDao.findOne(flightNumber);
+                if(!checkFlightCapacity(existingFlight,capacity))
+                {
+                    Message capacityMessage=new Message("Cannot reduce capacity,active reservation count for this flight is higher than the target capacity ","400");
+                    return new ResponseEntity<Object>(capacityMessage.getMessageJSON().toString(),HttpStatus.BAD_REQUEST);
+                }
                 List<Passenger> passengers=existingFlight.getPassengers();
                 for(Passenger passenger:passengers)
                 {
@@ -130,7 +153,8 @@ public class FlightController
                     temp.add(newFlight);
                     if(ReservationController.checkOverlap(passenger,temp))
                     {
-                        return new ResponseEntity<Object>(error,HttpStatus.NOT_FOUND);
+                        Message error= new Message("Flight overlap occurred","400");
+                        return new ResponseEntity<Object>(error,HttpStatus.BAD_REQUEST);
                     }
                     List<Flight> passengerFlights=passenger.getFlights();
                     passengerFlights.remove(existingFlight);
@@ -163,10 +187,15 @@ public class FlightController
         {
             return new ResponseEntity<Object>(e,HttpStatus.NOT_FOUND);
         }
-        return new ResponseEntity<Object>(error,HttpStatus.NOT_FOUND);
+        Message error=new Message("Cannot create/update flight","400");
+        return new ResponseEntity<Object>(error.getMessageJSON().toString(),HttpStatus.BAD_REQUEST);
     }
 
-    @RequestMapping(value="flight/{flightNumber}",
+    /**
+     * Delete an exisiting flight
+     * @param flightNumber Flight Number
+     */
+    @RequestMapping(value="airline/{flightNumber}",
             method=RequestMethod.DELETE,
             produces = "application/json")
     public ResponseEntity<Object> deleteFlight(@PathVariable("flightNumber") String flightNumber)
@@ -194,5 +223,25 @@ public class FlightController
                 return new ResponseEntity<Object>(message.getMessageJSON().toString(),HttpStatus.OK);
             }
         }
+    }
+
+    /**
+     * Check if new flight capacity is less than total reservation of flight
+     * @param flight Flight Object
+     * @param newCap New seat capacity
+     * @return false if capacity is lesser than total reservations
+     */
+    private boolean checkFlightCapacity(Flight flight,int newCap)
+    {
+        int currCap=flight.getPlane().getCapacity();
+
+        if(currCap<newCap)
+            return true;
+        else
+        {
+            if(newCap<(currCap-flight.getSeatsLeft()))
+                return false;
+        }
+        return true;
     }
 }

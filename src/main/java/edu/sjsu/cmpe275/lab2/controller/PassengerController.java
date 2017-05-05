@@ -1,8 +1,11 @@
 package edu.sjsu.cmpe275.lab2.controller;
 
+import edu.sjsu.cmpe275.lab2.dao.FlightDao;
 import edu.sjsu.cmpe275.lab2.dao.PassengerDao;
 import edu.sjsu.cmpe275.lab2.main.Message;
+import edu.sjsu.cmpe275.lab2.model.Flight;
 import edu.sjsu.cmpe275.lab2.model.Passenger;
+import edu.sjsu.cmpe275.lab2.model.Reservation;
 import org.json.XML;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 
 
 /**
@@ -26,6 +30,18 @@ public class PassengerController
     @Autowired
     PassengerDao passengerDao;
 
+    @Autowired
+    FlightDao flightDao;
+
+    /**
+     * Create a new passenger using passed parameters
+     * @param firstname First Name
+     * @param lastname Last Name
+     * @param age Age
+     * @param gender Gender
+     * @param phone Phone Number
+     * @param response for redirection to get Passenger
+     */
     @RequestMapping(value = "passenger",method = RequestMethod.POST,produces = "application/json")
     public ResponseEntity<Object> createPassenger(@RequestParam(value="firstname")String firstname,
                                   @RequestParam(value="lastname")String lastname,
@@ -36,13 +52,11 @@ public class PassengerController
     {
         Message message = new Message("","400");
         Passenger passenger=null;
-        String passengerId="";
         try
         {
             passenger = new Passenger(firstname, lastname, age, gender, phone);
             passengerDao.save(passenger);
-            passengerId=passenger.getId();
-            response.sendRedirect("/passenger/"+passengerId);
+            response.sendRedirect("/passenger/"+passenger.getId());
         }
         catch (DataIntegrityViolationException e)
         {
@@ -50,12 +64,22 @@ public class PassengerController
         }
         catch (IOException e)
         {
-            message.setMessage(e.getMessage());
+            message.setMessage(e.toString());
         }
 
         return new ResponseEntity<Object>(message.getMessageJSON().toString(),HttpStatus.BAD_REQUEST);
     }
 
+    /**
+     * Update a existing Passenger
+     * @param id Passenger Id
+     * @param firstname First Name
+     * @param lastname Last Name
+     * @param age Age
+     * @param gender Gender
+     * @param phone Phone Number
+     * @param response for redirection to get Passenger
+     */
     @RequestMapping(value = "passenger/{id}",method = RequestMethod.PUT,produces = "application/json")
     public ResponseEntity<Object> updatePassenger(@PathVariable("id") String id,
                                   @RequestParam(value="firstname")String firstname,
@@ -90,6 +114,10 @@ public class PassengerController
         return new ResponseEntity(message.getMessageJSON().toString(),HttpStatus.NOT_FOUND);
     }
 
+    /**
+     * Get Passenger as JSON
+     * @param id PassengerId
+     */
     @RequestMapping(value = "passenger/{id}",
             method = RequestMethod.GET,
             produces = "application/json")
@@ -108,6 +136,11 @@ public class PassengerController
         }
     }
 
+    /**
+     * Get Passenger as XML if xml param is true
+     * @param id PassengerId
+     * @param xml boolean
+     */
     @RequestMapping(value = "passenger/{id}",
             params = "xml",
             method = RequestMethod.GET,
@@ -126,16 +159,20 @@ public class PassengerController
             else
             {
                 Message error=new Message("Sorry, the requested passenger with id " + id + " does not exist","404");
-                return new ResponseEntity(XML.toString(error.getMessageJSON()), HttpStatus.NOT_FOUND);
+                return new ResponseEntity(error.getXML(), HttpStatus.NOT_FOUND);
             }
-
         }
-        else {
+        else
+        {
             Message error=new Message("Please check xml param","404");
-            return new ResponseEntity(XML.toString(error.getMessageJSON()), HttpStatus.NOT_FOUND);
+            return new ResponseEntity(error.getXML(), HttpStatus.NOT_FOUND);
         }
     }
 
+    /**
+     * Delete a Passenger
+     * @param id Passenger Id
+     */
     @RequestMapping(value = "passenger/{id}",
             method = RequestMethod.DELETE,
             produces = "application/xml")
@@ -145,12 +182,19 @@ public class PassengerController
         Message error=new Message("Passenger with id "+id+" does not exist","404");
         if(passengerDao.exists(id))
         {
+            Passenger passenger=passengerDao.findOne(id);
+            List<Flight> flights= passenger.getFlights();
+            for(Flight flight:flights)
+            {
+                flight.setSeatsLeft(flight.getSeatsLeft()+1);
+                flightDao.save(flight);
+            }
             passengerDao.delete(id);
-            return new ResponseEntity(XML.toString(success.getMessageJSON()),HttpStatus.OK);
+            return new ResponseEntity(success.getXML(),HttpStatus.OK);
         }
         else
         {
-            return new ResponseEntity(XML.toString(error.getMessageJSON()),HttpStatus.NOT_FOUND);
+            return new ResponseEntity(error.getXML(),HttpStatus.NOT_FOUND);
         }
     }
 }

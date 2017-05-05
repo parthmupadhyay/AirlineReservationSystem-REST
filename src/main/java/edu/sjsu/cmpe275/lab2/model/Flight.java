@@ -131,6 +131,10 @@ public class Flight
 
     private String description;
 
+    /**
+     * Flight Data as JSONObject excluding Passengers
+     * @return JSONObject
+     */
     public JSONObject getJSON()
     {
         JSONObject flightJson=new JSONObject();
@@ -146,8 +150,13 @@ public class Flight
         return flightJson;
     }
 
+    /**
+     * Flight Data as JSONObject inclusive of all Passengers details
+     * @return JSONObject
+     */
     public JSONObject getFullJson()
     {
+        JSONObject resultObject=new JSONObject();
         JSONObject flight=this.getJSON();
         JSONObject passengers=new JSONObject();
         JSONArray passengerArray=new JSONArray();
@@ -158,14 +167,31 @@ public class Flight
         }
         passengers.put("passenger",passengerArray);
         flight.put("passengers",passengers);
-        return flight;
+        resultObject.put("flight",flight);
+        return resultObject;
     }
 
+    /**
+     * XML representation of flight JSONObject
+     * @return String
+     */
     public String getXML()
     {
         return XML.toString(this.getFullJson());
     }
 
+    /**
+     * Constructor
+     * @param number Flight Number
+     * @param price Flight cost
+     * @param plane Embedded Plane
+     * @param source Flight source
+     * @param destination Flight destination
+     * @param departureTime Flight departure time
+     * @param arrivalTime Flight arrival time
+     * @param seatsLeft Number of seats left in flight
+     * @param description Flight description
+     */
     public Flight(String number, int price, Plane plane, String source, String destination, Date departureTime, Date arrivalTime, int seatsLeft, String description) {
         this.number = number;
         this.price = price;

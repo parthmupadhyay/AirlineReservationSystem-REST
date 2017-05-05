@@ -49,6 +49,10 @@ public class Plane
         this.yearOfManufacture = yearOfManufacture;
     }
 
+    /**
+     * Plane details as JSON
+     * @return JSONObject
+     */
     public JSONObject getJSON()
     {
         JSONObject plane=new JSONObject();
@@ -59,6 +63,13 @@ public class Plane
         return plane;
     }
 
+    /**
+     * Constructor
+     * @param capacity Plane capacity of passengers
+     * @param model Plane Model
+     * @param manufacturer Plane Manufacturer
+     * @param yearOfManufacture Plane year of Manufacturer
+     */
     public Plane(int capacity, String model, String manufacturer, int yearOfManufacture) {
         this.capacity = capacity;
         this.model = model;

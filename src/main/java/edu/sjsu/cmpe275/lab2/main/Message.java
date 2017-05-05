@@ -1,6 +1,7 @@
 package edu.sjsu.cmpe275.lab2.main;
 
 import org.json.JSONObject;
+import org.json.XML;
 
 /**
  * Created by parth on 4/26/2017.
@@ -11,6 +12,11 @@ public class Message
     private String code;
     private String messageType;
 
+    /**
+     * Constructor
+     * @param message Message String
+     * @param Code StatusCode for the message
+     */
     public Message(String message, String Code) {
         this.message = message;
         this.code = Code;
@@ -35,6 +41,10 @@ public class Message
         this.setMessageType();
     }
 
+    /**
+     * JSON representation of Message
+     * @return JSONObject
+     */
     public JSONObject getMessageJSON()
     {
         JSONObject error=new JSONObject();
@@ -44,6 +54,21 @@ public class Message
         error.put(this.messageType,messageType);
         return error;
     }
+
+    /**
+     * XML representation of Message
+     * @return String
+     */
+    public String getXML()
+    {
+        return XML.toString(getMessageJSON());
+    }
+
+
+    /**
+     * Set the message type based on the Message statusCode
+     * @return Nothing
+     */
     private void setMessageType()
     {
         switch (this.code)
